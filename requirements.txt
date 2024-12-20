@@ -1,0 +1,9 @@
+torch
+transformers
+datasets
+peft
+evaluate
+pynvml
+wandb
+scipy
+trl
