@@ -54,11 +54,11 @@ class ModelArguments:
 class DataArguments:
     train_data_path: str = field(default=None, metadata={"help": "Path to the training data."})
     train_data_percentage: Optional[float] = field(
-        default=1.0,
+        default=0.01,
         metadata={"help": "The percentage of data to use. If < 1.0, will use a subset of the data."}
     )
     load_local_dataset: bool = field(default=True, metadata={"help": "Whether to load local dataset."})
-    test_datasets_percentage: Optional[float] = field(default=0.05,
+    test_datasets_percentage: Optional[float] = field(default=0.1,
                                                       metadata={"help": "The percentage of test data ."})
     train_data_format: str = field(default='json', metadata={"help": "The format of the data."})
 

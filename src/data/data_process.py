@@ -130,11 +130,6 @@ if __name__ == "__main__":
             "features": ["func_documentation_string", "func_code_string"]
         },
         {
-            "name": "fka/awesome-chatgpt-prompts",
-            "split": "train",
-            "features": ["act", "prompt"]
-        },
-        {
             "name": "HuggingFaceH4/CodeAlpaca_20K",
             "split": "train",
             "features": ["prompt", "completion"]
@@ -145,18 +140,18 @@ if __name__ == "__main__":
     combine_datasets(datasets_info, "combined_dataset")
 
     # case 2
-    covert_dataset_tojson(
-        dataset_path="/src/data/merged_dataset/code_search_net",
-        output_name="code_search_net.jsonl")
+    # covert_dataset_tojson(
+    #     dataset_path="/src/data/merged_dataset/code_search_net",
+    #     output_name="code_search_net.jsonl")
 
     # case3
-    output_path = "merged_dataset"
-    records_per_shard = 100000  # 每个分片包含的记录数
-    max_workers = 10  # 根据您的机器性能调整进程数
-
-    merge_hf_datasets_streaming_to_parquet_zip_parallel(
-        datasets_info,
-        output_path,
-        records_per_shard,
-        max_workers
-    )
+    # output_path = "merged_dataset"
+    # records_per_shard = 100000  # 每个分片包含的记录数
+    # max_workers = 10  # 根据您的机器性能调整进程数
+    #
+    # merge_hf_datasets_streaming_to_parquet_zip_parallel(
+    #     datasets_info,
+    #     output_path,
+    #     records_per_shard,
+    #     max_workers
+    # )

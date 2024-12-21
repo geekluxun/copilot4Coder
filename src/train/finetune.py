@@ -162,10 +162,10 @@ if __name__ == '__main__':
                 '--model_name_or_path', '/Users/luxun/workspace/ai/hf/models/Qwen1.5-0.5B',
                 '--use_lora', 'True',
                 '--train_data_path',
-                '/Users/luxun/workspace/ai/ms/datasets/code_all/CodeAlpaca_20K/data-00000-of-00001.arrow',
+                '/Users/luxun/workspace/ai/ms/datasets/code_all',
                 '--train_data_format', 'arrow',
                 # '--max_steps', '55',
                 '--num_train_epochs', '1',
-                '--per_device_train_batch_size', '13'
+                '--per_device_train_batch_size', '16'
                 ]
     train_model()
