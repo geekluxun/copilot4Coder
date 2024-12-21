@@ -9,6 +9,7 @@ from torch.multiprocessing import freeze_support
 from transformers import AutoTokenizer, AutoModelForCausalLM, TrainingArguments, DataCollatorForSeq2Seq
 from trl import SFTTrainer
 
+from monitor.monitor import init_monitor
 from src.train.arguments import ModelArguments, DataArguments, print_args
 from src.data.data_load import load_train_data
 from src.util.device_util import get_train_device
@@ -30,7 +31,7 @@ def preprocess_logits_for_metrics(logits, labels):
 def train_model():
     model_args, data_args, training_args = get_args()
     device = get_train_device()
-
+    init_monitor(training_args)
     mode_kwargs = _get_mode_kwargs(model_args, training_args)
     # 加载模型
     print("Loading model...")
