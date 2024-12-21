@@ -7,3 +7,7 @@ pynvml
 wandb
 scipy
 trl
+seaborn
+matplotlib
+pandas
+tqdm

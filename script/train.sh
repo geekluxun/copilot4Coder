@@ -6,4 +6,17 @@ python  -m src.train.finetune \
   --train_data_format  'arrow' \
   --num_train_epochs  1 \
   --per_device_train_batch_size 16 \
-  --bf16 True
+  --gradient_accumulation_steps  2 \
+  --warmup_steps 100 \
+  --save_strategy "steps" \
+  --save_steps 500 \
+  --save_total_limit 3 \
+  --report_to ["tensorboard", "wandb"] \
+  --bf16 True \
+  --logging_dir 'tmp/log' \
+  --log_level 'Debug' \
+  --logging_steps  100 \
+  --load_best_model_at_end 'True' \
+  --metric_for_best_model 'loss' \
+  --max_seq_length  512 \
+

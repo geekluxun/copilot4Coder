@@ -1,6 +1,8 @@
 from dataclasses import dataclass, field
 from typing import Optional
 
+from transformers import TrainingArguments
+
 
 @dataclass
 class ModelArguments:
@@ -61,6 +63,11 @@ class DataArguments:
     test_datasets_percentage: Optional[float] = field(default=0.1,
                                                       metadata={"help": "The percentage of test data ."})
     train_data_format: str = field(default='json', metadata={"help": "The format of the data."})
+
+
+@dataclass
+class MyTrainingArguments(TrainingArguments):
+    max_seq_length: int = field(default=512, metadata={"help": "The maximum sequence length."})
 
 
 def print_args(args, name='arguments'):

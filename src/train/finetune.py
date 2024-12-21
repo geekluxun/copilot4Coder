@@ -6,11 +6,11 @@ import torch
 import transformers
 from peft import LoraConfig, get_peft_model
 from torch.multiprocessing import freeze_support
-from transformers import AutoTokenizer, AutoModelForCausalLM, TrainingArguments, DataCollatorForSeq2Seq
+from transformers import AutoTokenizer, AutoModelForCausalLM, TrainingArguments, DataCollatorForSeq2Seq, Trainer
 from trl import SFTTrainer
 
 from src.monitor.monitor import init_monitor
-from src.train.arguments import ModelArguments, DataArguments, print_args
+from src.train.arguments import ModelArguments, DataArguments, print_args, MyTrainingArguments
 from src.data.data_load import load_train_data
 from src.util.device_util import get_train_device
 
@@ -55,13 +55,6 @@ def train_model():
 
     # 加载tokenizer和数据集
     tokenizer = AutoTokenizer.from_pretrained(model_args.model_name_or_path)
-
-    dataset = load_train_data(data_args)
-    train_dataset = dataset["train"]
-    val_dataset = dataset["test"]
-
-    # print(f"train_dataset size: {len(train_dataset)}, val_dataset size: {len(val_dataset)}")
-
     def preprocess_data_function(examples):
         prompts = []
         for instruction, completion in zip(examples["prompt"], examples["completion"]):
@@ -71,7 +64,7 @@ def train_model():
         # 进行分词，并确保返回的是 PyTorch 张量
         model_inputs = tokenizer(
             prompts,
-            max_length=512,
+            max_length=training_args.max_seq_length,
             padding="max_length",
             truncation=True,
             return_tensors="pt"
@@ -115,7 +108,8 @@ def train_model():
         model_inputs["labels"] = labels
 
         return model_inputs
-
+    # 加载数据集
+    dataset = load_train_data(data_args)
     train_dataset = dataset["train"].map(preprocess_data_function, batched=True)
     val_dataset = dataset["test"].map(preprocess_data_function, batched=True)
     print(f"train_dataset size: {len(train_dataset)}, val_dataset size: {len(val_dataset)}")
@@ -124,7 +118,7 @@ def train_model():
     # collator = DataCollatorForCompletionOnlyLM(response_template=SFT_RESPONSE_TEMPLATE, tokenizer=tokenizer)
     data_collator = DataCollatorForSeq2Seq(tokenizer=tokenizer)
     # 创建训练器
-    trainer = SFTTrainer(
+    trainer = Trainer(
         model=model,
         args=training_args,
         train_dataset=train_dataset,
@@ -150,7 +144,7 @@ def _get_mode_kwargs(model_args: "ModelArguments", training_args: "TrainingArgum
 
 
 def get_args():
-    parser = transformers.HfArgumentParser((ModelArguments, DataArguments, TrainingArguments))
+    parser = transformers.HfArgumentParser((ModelArguments, DataArguments, MyTrainingArguments))
     model_args, data_args, training_args = parser.parse_args_into_dataclasses()
     print_args(model_args, 'model arguments')
     print_args(data_args, 'data arguments')
@@ -162,7 +156,7 @@ if __name__ == '__main__':
     freeze_support()
     # sys.argv = ['finetune.py',
     #             '--output_dir', 'tmp/output',
-    #             '--model_name_or_path', '/Users/luxun/workspace/ai/hf/models/Qwen1.5-0.5B',
+    #             '--model_name_or_path', '/Users/luxun/workspace/ai/ms/models/Qwen2.5-0.5B-Instruct',
     #             '--use_lora', 'True',
     #             '--train_data_path',
     #             '/Users/luxun/workspace/ai/ms/datasets/code_all',
@@ -170,6 +164,7 @@ if __name__ == '__main__':
     #             # '--max_steps', '55',
     #             '--num_train_epochs', '1',
     #             '--per_device_train_batch_size', '16',
-    #             '--bf16', 'True'
+    #             '--bf16', 'True',
+    #             '--max_seq_length', '512'
     #             ]
     train_model()
