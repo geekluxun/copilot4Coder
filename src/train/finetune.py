@@ -130,7 +130,7 @@ def train_model():
     print(f"Total trainable parameters: {total_params}")
     # 开始训练
     print("Starting training...")
-    trainer.train()
+    trainer.train(resume_from_checkpoint=training_args.resume_from_checkpoint)
 
 
 def _get_mode_kwargs(model_args: "ModelArguments", training_args: "TrainingArguments") -> Dict[str, Any]:

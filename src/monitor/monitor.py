@@ -24,6 +24,19 @@ def init_monitor(training_args: TrainingArguments):
     monitor.start()
 
 
+def _get_gpu_memory():
+    if torch.cuda.is_available():
+        for i in range(torch.cuda.device_count()):
+            total_memory = torch.cuda.get_device_properties(i).total_memory / (1024 * 1024 * 1024)  # 转为 GB
+            allocated_memory = torch.cuda.memory_allocated(i) / (1024 * 1024 * 1024)  # 转为 GB
+            cached_memory = torch.cuda.memory_reserved(i) / (1024 * 1024 * 1024)  # 转为 GB
+            free_memory = total_memory - allocated_memory  # 可用显存
+            print(
+                f"GPU {i}: Total: {total_memory:.2f} GB, Allocated: {allocated_memory:.2f} GB, Cached: {cached_memory:.2f} GB, Free: {free_memory:.2f} GB")
+    else:
+        print("No GPU available")
+
+
 class ResourceMonitor:
     def __init__(self, interval=MONITOR_INTERVAL):
         self.interval = interval
@@ -49,8 +62,11 @@ class ResourceMonitor:
             print(f"Memory Used: {memory.percent}%")
             print(f"Available Memory: {memory.available / (1024 * 1024 * 1024):.2f} GB")
 
+            _get_gpu_memory()
+
             if torch.backends.mps.is_available():
                 print("MPS/GPU is active")
 
             print("=====================")
             time.sleep(self.interval)
+
