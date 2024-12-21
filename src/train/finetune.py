@@ -9,8 +9,8 @@ from torch.multiprocessing import freeze_support
 from transformers import AutoTokenizer, AutoModelForCausalLM, TrainingArguments, DataCollatorForSeq2Seq
 from trl import SFTTrainer
 
-from arguments import ModelArguments, DataArguments, print_args
-from data.data_load import load_train_data
+from src.train.arguments import ModelArguments, DataArguments, print_args
+from src.data.data_load import load_train_data
 from src.util.device_util import get_train_device
 
 # 环境设置
@@ -87,28 +87,28 @@ def train_model():
         # 假设 "### Completion:" 的开始位置相同，你可以找到该位置并进行掩码。
 
         # 定义 Completion 的前缀
-        completion_prefix = "### Completion:"
-        completion_token_ids = tokenizer(completion_prefix, add_special_tokens=False)["input_ids"]
-
-        # 转换为列表以便搜索
-        input_ids_list = labels.tolist()
-        completion_length = len(completion_token_ids)
-
-        for i, tokens in enumerate(input_ids_list):
-            try:
-                # 查找 Completion 前缀的起始位置
-                prefix_start = tokens.index(completion_token_ids[0])
-                for j in range(1, completion_length):
-                    if tokens[prefix_start + j] != completion_token_ids[j]:
-                        break
-                else:
-                    # Completion 内容的实际开始位置
-                    completion_start = prefix_start + completion_length
-                    # 将 Instruction 部分的 labels 设置为 -100
-                    labels[i, :completion_start] = -100
-            except ValueError:
-                # 如果未找到 Completion 前缀，则全部设置为 -100
-                labels[i] = -100
+        # completion_prefix = "### Completion:"
+        # completion_token_ids = tokenizer(completion_prefix, add_special_tokens=False)["input_ids"]
+        #
+        # # 转换为列表以便搜索
+        # input_ids_list = labels.tolist()
+        # completion_length = len(completion_token_ids)
+        #
+        # for i, tokens in enumerate(input_ids_list):
+        #     try:
+        #         # 查找 Completion 前缀的起始位置
+        #         prefix_start = tokens.index(completion_token_ids[0])
+        #         for j in range(1, completion_length):
+        #             if tokens[prefix_start + j] != completion_token_ids[j]:
+        #                 break
+        #         else:
+        #             # Completion 内容的实际开始位置
+        #             completion_start = prefix_start + completion_length
+        #             # 将 Instruction 部分的 labels 设置为 -100
+        #             labels[i, :completion_start] = -100
+        #     except ValueError:
+        #         # 如果未找到 Completion 前缀，则全部设置为 -100
+        #         labels[i] = -100
 
         # 将处理后的 labels 添加到 model_inputs
         model_inputs["labels"] = labels
@@ -166,6 +166,7 @@ if __name__ == '__main__':
                 '--train_data_format', 'arrow',
                 # '--max_steps', '55',
                 '--num_train_epochs', '1',
-                '--per_device_train_batch_size', '16'
+                '--per_device_train_batch_size', '16',
+                '--bf16', 'True'
                 ]
     train_model()
