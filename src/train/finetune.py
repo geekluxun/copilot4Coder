@@ -9,7 +9,7 @@ from torch.multiprocessing import freeze_support
 from transformers import AutoTokenizer, AutoModelForCausalLM, TrainingArguments, DataCollatorForSeq2Seq
 from trl import SFTTrainer
 
-from monitor.monitor import init_monitor
+from src.monitor.monitor import init_monitor
 from src.train.arguments import ModelArguments, DataArguments, print_args
 from src.data.data_load import load_train_data
 from src.util.device_util import get_train_device
@@ -160,16 +160,16 @@ def get_args():
 
 if __name__ == '__main__':
     freeze_support()
-    sys.argv = ['finetune.py',
-                '--output_dir', 'tmp/output',
-                '--model_name_or_path', '/Users/luxun/workspace/ai/hf/models/Qwen1.5-0.5B',
-                '--use_lora', 'True',
-                '--train_data_path',
-                '/Users/luxun/workspace/ai/ms/datasets/code_all',
-                '--train_data_format', 'arrow',
-                # '--max_steps', '55',
-                '--num_train_epochs', '1',
-                '--per_device_train_batch_size', '16',
-                '--bf16', 'True'
-                ]
+    # sys.argv = ['finetune.py',
+    #             '--output_dir', 'tmp/output',
+    #             '--model_name_or_path', '/Users/luxun/workspace/ai/hf/models/Qwen1.5-0.5B',
+    #             '--use_lora', 'True',
+    #             '--train_data_path',
+    #             '/Users/luxun/workspace/ai/ms/datasets/code_all',
+    #             '--train_data_format', 'arrow',
+    #             # '--max_steps', '55',
+    #             '--num_train_epochs', '1',
+    #             '--per_device_train_batch_size', '16',
+    #             '--bf16', 'True'
+    #             ]
     train_model()

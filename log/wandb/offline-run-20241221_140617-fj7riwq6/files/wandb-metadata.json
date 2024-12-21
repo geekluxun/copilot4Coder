@@ -1,0 +1,56 @@
+{
+  "os":  "Linux-4.19.91-012.ali4000.alios7.x86_64-x86_64-with-glibc2.35",
+  "python":  "CPython 3.10.14",
+  "startedAt":  "2024-12-21T06:06:17.453820Z",
+  "args":  [
+    "--output_dir",
+    "tmp/output",
+    "--model_name_or_path",
+    "/mnt/workspace/model/Qwen2.5-0.5B-Instruct",
+    "--use_lora",
+    "True",
+    "--train_data_path",
+    "/mnt/workspace/data/code_all",
+    "--train_data_format",
+    "arrow",
+    "--num_train_epochs",
+    "1",
+    "--per_device_train_batch_size",
+    "8",
+    "--bf16",
+    "True"
+  ],
+  "program":  "-m src.train.finetune",
+  "git":  {
+    "remote":  "https://github.com/geekluxun/copilot4Coder.git",
+    "commit":  "3f83e5518bc803198a0437b5a4dcf76bfa840069"
+  },
+  "root":  "tmp/wandb_log",
+  "host":  "dsw-782797-bc8898688-bh6h6",
+  "executable":  "/usr/local/bin/python",
+  "cpu_count":  4,
+  "cpu_count_logical":  8,
+  "gpu":  "NVIDIA A10",
+  "gpu_count":  1,
+  "disk":  {
+    "/":  {
+      "total":  "106745946112",
+      "used":  "2569662464"
+    }
+  },
+  "memory":  {
+    "total":  "31313850368"
+  },
+  "cpu":  {
+    "count":  4,
+    "countLogical":  8
+  },
+  "gpu_nvidia":  [
+    {
+      "name":  "NVIDIA A10",
+      "memoryTotal":  "23836098560",
+      "architecture":  "Ampere"
+    }
+  ],
+  "cudaVersion":  "12.1"
+}
