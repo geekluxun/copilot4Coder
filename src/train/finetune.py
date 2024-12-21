@@ -132,6 +132,8 @@ def train_model():
         data_collator=data_collator,
     )
 
+    total_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    print(f"Total trainable parameters: {total_params}")
     # 开始训练
     print("Starting training...")
     trainer.train()
