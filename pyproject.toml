@@ -1,0 +1,56 @@
+# 项目基本信息
+[project]
+name = "copilot4Coder"  # 项目名称
+version = "0.1.0"  # 项目版本
+description = "A brief description of your project."  # 项目描述
+dependencies = [
+    "torch",
+    "transformers",
+    "datasets",
+    "peft",
+    "evaluate",
+    "pynvml",
+    "wandb",
+    "scipy",
+    "trl",
+    "seaborn",
+    "matplotlib",
+    "pandas",
+    "tqdm"
+]  # 项目的运行时依赖
+
+# Python 的最低版本要求
+requires-python = ">=3.9"
+
+# 包含的包配置
+[tool.setuptools.packages.find]
+where = ["src"]
+
+# 可选的额外依赖
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",  # 测试框架
+    "black>=23.0",  # 代码格式化工具
+    "flake8>=4.0",  # 代码静态检查
+]
+docs = [
+    "mkdocs>=1.4",  # 文档生成工具
+    "mkdocs-material>=8.0",
+]
+
+# 构建系统配置
+[build-system]
+requires = ["setuptools>=42", "wheel"]
+build-backend = "setuptools.build_meta"
+
+# 开发工具配置
+[tool.black]
+line-length = 88
+target-version = ["py38"]
+
+[tool.flake8]
+max-line-length = 88
+exclude = ["build", "dist"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

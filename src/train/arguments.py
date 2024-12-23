@@ -68,7 +68,7 @@ class DataArguments:
 @dataclass
 class MyTrainingArguments(TrainingArguments):
     max_seq_length: int = field(default=512, metadata={"help": "The maximum sequence length."})
-
+    deepspeed: str = field(default=None, metadata={"help": "The deepspeed config file."})
 
 def print_args(args, name='arguments'):
     """Print arguments."""
