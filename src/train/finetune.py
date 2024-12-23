@@ -13,6 +13,7 @@ from src.monitor.monitor import init_monitor
 from src.train.arguments import ModelArguments, DataArguments, print_args, MyTrainingArguments
 from src.data.data_load import load_train_data
 from src.util.device_util import get_train_device
+import json
 
 # 环境设置
 os.environ["WANDB_MODE"] = "offline"
@@ -144,8 +145,12 @@ def _get_mode_kwargs(model_args: "ModelArguments", training_args: "TrainingArgum
 
 
 def get_args():
+    # 加载JSON配置文件
+    with open('script/params.json') as config_file:
+        config_dict = json.load(config_file)
     parser = transformers.HfArgumentParser((ModelArguments, DataArguments, MyTrainingArguments))
-    model_args, data_args, training_args = parser.parse_args_into_dataclasses()
+    model_args, data_args, training_args = parser.parse_dict(config_dict)
+    # model_args, data_args, training_args = parser.parse_args_into_dataclasses()
     print_args(model_args, 'model arguments')
     print_args(data_args, 'data arguments')
     print_args(training_args, 'training arguments')

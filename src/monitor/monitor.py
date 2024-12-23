@@ -33,6 +33,7 @@ def _get_gpu_memory():
             free_memory = total_memory - allocated_memory  # 可用显存
             print(
                 f"GPU {i}: Total: {total_memory:.2f} GB, Allocated: {allocated_memory:.2f} GB, Cached: {cached_memory:.2f} GB, Free: {free_memory:.2f} GB")
+            print(f"GPU {i} summary:", torch.cuda.memory.memory_summary(i))
     else:
         print("No GPU available")
 

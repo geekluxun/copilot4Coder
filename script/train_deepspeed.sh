@@ -15,24 +15,4 @@ export PYTORCH_MPS_ENABLED=0
 # 启动分布式训练
 PYTHONPATH=$(pwd) deepspeed --num_gpus=1 \
     --master_port=$MASTER_PORT \
-    src/train/finetune.py \
-    --deepspeed script/ds_config.json \
-    --output_dir 'tmp/output' \
-    --model_name_or_path '/mnt/workspace/model/Qwen2.5-0.5B-Instruct'  \
-    --train_data_path  '/mnt/workspace/data/code_all' \
-    --use_lora True \
-    --train_data_format  'arrow' \
-    --num_train_epochs  1 \
-    --per_device_train_batch_size 12 \
-    --gradient_accumulation_steps  4 \
-    --warmup_steps 100 \
-    --save_strategy "steps" \
-    --save_steps 500 \
-    --save_total_limit 3 \
-    --report_to tensorboard --report_to wandb  \
-    --logging_dir 'tmp/log' \
-    --log_level 'debug' \
-    --logging_steps  100 \
-    --metric_for_best_model 'loss' \
-    --max_seq_length  400 \
-    --bf16 'True'
+    src/train/finetune.py
