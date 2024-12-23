@@ -1,7 +1,8 @@
 import json
 import os
 from typing import Any, Dict
-
+import gc
+import torch
 import optuna
 import transformers
 from peft import LoraConfig, get_peft_model
@@ -30,7 +31,7 @@ def preprocess_logits_for_metrics(logits, labels):
 def train_model():
     model_args, data_args, training_args = get_args()
     device = get_train_device()
-    init_monitor(training_args)
+    # init_monitor(training_args)
     mode_kwargs = _get_mode_kwargs(model_args)
     # 加载模型
     print("Loading model...")
@@ -126,7 +127,7 @@ def train_model():
             model_args.model_name_or_path,
             **mode_kwargs,
         )
-        model.to(device)
+        #model.to(device)
 
         if model_args.use_lora:
             # 定义 Lora 配置
@@ -155,13 +156,21 @@ def train_model():
 
     # 开始训练
     print("Starting hyperparameter_search training...")
+    # n_trials = 5
+    # for trial in range(n_trials):
+    #     try:
     best_run = trainer.hyperparameter_search(
         direction="minimize",
         hp_space=hp_space,
         backend="optuna",
-        n_trials=5,
-        study_name="bayesian_search",  # 标记为贝叶斯优化
+        n_trials=20,  # 单次试验
+        gc_after_trial=True,  # 自动垃圾回收
     )
+        # except Exception as e:
+        #     print(f"Trial {trial} failed: {e}")
+        # finally:
+        #     release_memory()
+
     # 输出最佳超参数
     print("Best hyperparameters:", best_run.hyperparameters)
 
@@ -178,7 +187,10 @@ def train_model():
     print("Starting best training...")
     trainer.train(resume_from_checkpoint=training_args.resume_from_checkpoint)
 
-
+def release_memory():
+    gc.collect()  # 清理 Python 垃圾
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()  # 清理 GPU 缓存        release_memory()  # 强制释放显存
 # 动态初始化模型方法
 
 
@@ -209,7 +221,17 @@ def get_args():
 def hp_space(trial):
     return {
         "learning_rate": trial.suggest_loguniform("learning_rate", 1e-5, 5e-4),
-        "gradient_accumulation_steps": trial.suggest_categorical("gradient_accumulation_steps", [2, 4, 8, 16]),
+        "gradient_accumulation_steps": trial.suggest_categorical("gradient_accumulation_steps", [4, 8,16,24]),
+    }
+
+def wandb_hp_space(trial):
+    return {
+        "method": "random",
+        "metric": {"name": "objective", "goal": "minimize"},
+        "parameters": {
+            #"learning_rate": {"distribution": "uniform", "min": 1e-5, "max": 5e-4},
+            "gradient_accumulation_steps": {"values": [4,8,16,24]},
+        },
     }
 
 
