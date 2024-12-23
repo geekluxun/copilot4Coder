@@ -12,3 +12,4 @@ matplotlib
 pandas
 tqdm
 tensorboard
+optuna

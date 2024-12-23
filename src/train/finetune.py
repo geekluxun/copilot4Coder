@@ -1,19 +1,17 @@
+import json
 import os
-import sys
 from typing import Any, Dict
 
-import torch
+import optuna
 import transformers
 from peft import LoraConfig, get_peft_model
 from torch.multiprocessing import freeze_support
 from transformers import AutoTokenizer, AutoModelForCausalLM, TrainingArguments, DataCollatorForSeq2Seq, Trainer
-from trl import SFTTrainer
 
+from src.data.data_load import load_train_data
 from src.monitor.monitor import init_monitor
 from src.train.arguments import ModelArguments, DataArguments, print_args, MyTrainingArguments
-from src.data.data_load import load_train_data
 from src.util.device_util import get_train_device
-import json
 
 # 环境设置
 os.environ["WANDB_MODE"] = "offline"
@@ -33,29 +31,30 @@ def train_model():
     model_args, data_args, training_args = get_args()
     device = get_train_device()
     init_monitor(training_args)
-    mode_kwargs = _get_mode_kwargs(model_args, training_args)
+    mode_kwargs = _get_mode_kwargs(model_args)
     # 加载模型
     print("Loading model...")
-    model = AutoModelForCausalLM.from_pretrained(
-        model_args.model_name_or_path,
-        **mode_kwargs,
-    )
-    model.to(device)
-
-    if model_args.use_lora:
-        # 定义 Lora 配置
-        lora_config = LoraConfig(
-            r=model_args.lora_rank,
-            lora_alpha=model_args.lora_alpha,
-            lora_dropout=model_args.lora_dropout,
-            target_modules=["q_proj", "k_proj", "v_proj", "o_proj"],
-            bias="none",
-            task_type="CAUSAL_LM",
-        )
-        model = get_peft_model(model, lora_config)
+    # model = AutoModelForCausalLM.from_pretrained(
+    #     model_args.model_name_or_path,
+    #     **mode_kwargs,
+    # )
+    # model.to(device)
+    #
+    # if model_args.use_lora:
+    #     # 定义 Lora 配置
+    #     lora_config = LoraConfig(
+    #         r=model_args.lora_rank,
+    #         lora_alpha=model_args.lora_alpha,
+    #         lora_dropout=model_args.lora_dropout,
+    #         target_modules=["q_proj", "k_proj", "v_proj", "o_proj"],
+    #         bias="none",
+    #         task_type="CAUSAL_LM",
+    #     )
+    #     model = get_peft_model(model, lora_config)
 
     # 加载tokenizer和数据集
     tokenizer = AutoTokenizer.from_pretrained(model_args.model_name_or_path)
+
     def preprocess_data_function(examples):
         prompts = []
         for instruction, completion in zip(examples["prompt"], examples["completion"]):
@@ -109,6 +108,7 @@ def train_model():
         model_inputs["labels"] = labels
 
         return model_inputs
+
     # 加载数据集
     dataset = load_train_data(data_args)
     train_dataset = dataset["train"].map(preprocess_data_function, batched=True)
@@ -118,28 +118,77 @@ def train_model():
     # 创建DataCollator
     # collator = DataCollatorForCompletionOnlyLM(response_template=SFT_RESPONSE_TEMPLATE, tokenizer=tokenizer)
     data_collator = DataCollatorForSeq2Seq(tokenizer=tokenizer)
-    # 创建训练器
+
+    def model_init():
+        mode_kwargs = _get_mode_kwargs(model_args)
+        device = get_train_device()
+        model = AutoModelForCausalLM.from_pretrained(
+            model_args.model_name_or_path,
+            **mode_kwargs,
+        )
+        model.to(device)
+
+        if model_args.use_lora:
+            # 定义 Lora 配置
+            lora_config = LoraConfig(
+                r=model_args.lora_rank,
+                lora_alpha=model_args.lora_alpha,
+                lora_dropout=model_args.lora_dropout,
+                target_modules=["q_proj", "k_proj", "v_proj", "o_proj"],
+                bias="none",
+                task_type="CAUSAL_LM",
+            )
+            model = get_peft_model(model, lora_config)
+        return model
+
+    # 模型加载
     trainer = Trainer(
-        model=model,
+        model_init=model_init,
         args=training_args,
         train_dataset=train_dataset,
         eval_dataset=val_dataset,
         data_collator=data_collator,
     )
+    #
+    # total_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    # print(f"Total trainable parameters: {total_params}")
 
-    total_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
-    print(f"Total trainable parameters: {total_params}")
     # 开始训练
-    print("Starting training...")
+    print("Starting hyperparameter_search training...")
+    best_run = trainer.hyperparameter_search(
+        direction="minimize",
+        hp_space=hp_space,
+        backend="optuna",
+        n_trials=5,
+        study_name="bayesian_search",  # 标记为贝叶斯优化
+    )
+    # 输出最佳超参数
+    print("Best hyperparameters:", best_run.hyperparameters)
+
+    # 使用最佳超参数重新训练
+    training_args = training_args.replace(**best_run.hyperparameters)
+    print("best training args is:", training_args)
+    trainer = Trainer(
+        model=model_init(),
+        args=training_args,
+        train_dataset=train_dataset,
+        eval_dataset=val_dataset,
+        data_collator=data_collator,
+    )
+    print("Starting best training...")
     trainer.train(resume_from_checkpoint=training_args.resume_from_checkpoint)
 
 
-def _get_mode_kwargs(model_args: "ModelArguments", training_args: "TrainingArguments") -> Dict[str, Any]:
+# 动态初始化模型方法
+
+
+
+def _get_mode_kwargs(model_args: "ModelArguments") -> Dict[str, Any]:
     init_kwargs = {}
-    if training_args.bf16:
-        init_kwargs["torch_dtype"] = torch.bfloat16
-    elif training_args.fp16:
-        init_kwargs["torch_dtype"] = torch.float16
+    # if training_args.bf16:
+    #     init_kwargs["torch_dtype"] = torch.bfloat16
+    # elif training_args.fp16:
+    #     init_kwargs["torch_dtype"] = torch.float16
     init_kwargs["trust_remote_code"] = True
     return init_kwargs
 
@@ -155,6 +204,13 @@ def get_args():
     print_args(data_args, 'data arguments')
     print_args(training_args, 'training arguments')
     return model_args, data_args, training_args
+
+
+def hp_space(trial):
+    return {
+        "learning_rate": trial.suggest_loguniform("learning_rate", 1e-5, 5e-4),
+        "gradient_accumulation_steps": trial.suggest_categorical("gradient_accumulation_steps", [2, 4, 8, 16]),
+    }
 
 
 if __name__ == '__main__':
