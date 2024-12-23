@@ -36,6 +36,9 @@
     "hysteresis": 2,
     "min_loss_scale": 1
   },
+  "bf16": {
+    "enabled": true
+  },
   "zero_optimization": {
     "stage": 3,
     "allgather_partitions": true,
@@ -44,6 +47,9 @@
     "reduce_scatter": true,
     "reduce_bucket_size": 5e8,
     "contiguous_gradients": true,
-    "cpu_offload": false
+    "offload_optimizer": {
+      "device": "cpu",
+      "pin_memory": false
+    }
   }
 }
