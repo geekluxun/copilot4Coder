@@ -1,6 +1,6 @@
 {
   "output_dir": "tmp/output",
-  "model_name_or_path": "/mnt/workspace/model/Qwen2.5-0.5B-Instruct",
+  "model_name_or_path": "/mnt/workspace/model/Qwen2.5-7B-Instruct",
   "train_data_path": "/mnt/workspace/data/code_all",
   "train_data_format": "arrow",
   "use_lora": true,
@@ -10,7 +10,8 @@
   "per_device_eval_batch_size": 8,
   "learning_rate": 1e-5,
   "warmup_steps": 100,
-  "max_seq_length": 650,
+  "max_seq_length": 512,
+  "lora_rank": 32,
   "bf16": true,
   "save_strategy": "steps",
   "save_steps": 1000,
@@ -25,6 +26,6 @@
     "tensorboard",
     "wandb"
   ],
-  "use_hp_search": true,
+  "use_hp_search": false,
   "hp_search_backend": "ray"
 }
