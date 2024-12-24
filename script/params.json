@@ -24,5 +24,7 @@
   "report_to": [
     "tensorboard",
     "wandb"
-  ]
+  ],
+  "use_hp_search": true,
+  "hp_search_backend": "ray"
 }

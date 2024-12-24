@@ -7,7 +7,7 @@ from transformers import TrainingArguments
 @dataclass
 class ModelArguments:
     model_name_or_path: str = field(
-        default='/Users/luxun/workspace/ai/hf/models/Qwen1.5-0.5B',
+        default=None,
         metadata={"help": "Path to pretrained model or model identifier from huggingface.co/models"}
     )
     use_flash_attn: bool = field(
@@ -69,6 +69,11 @@ class DataArguments:
 class MyTrainingArguments(TrainingArguments):
     max_seq_length: int = field(default=512, metadata={"help": "The maximum sequence length."})
     deepspeed: str = field(default=None, metadata={"help": "The deepspeed config file."})
+    use_hp_search: bool = field(default=False, metadata={"help": "Enable  hyperparameter search"})
+    hp_search_backend: str = field(default='optuna',
+                                   metadata={"help": "The hyperparameter search backend."})
+    hp_search_trails: int = field(default=10, metadata={"help": "The number of trails for hyperparameter search."})
+
 
 def print_args(args, name='arguments'):
     """Print arguments."""

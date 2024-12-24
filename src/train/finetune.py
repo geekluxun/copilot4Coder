@@ -1,18 +1,17 @@
-import json
+import argparse
 import os
+import sys
 from typing import Any, Dict
-import gc
-import torch
-import optuna
+
 import transformers
 from peft import LoraConfig, get_peft_model
 from torch.multiprocessing import freeze_support
-from transformers import AutoTokenizer, AutoModelForCausalLM, TrainingArguments, DataCollatorForSeq2Seq, Trainer
+from transformers import AutoTokenizer, AutoModelForCausalLM, DataCollatorForSeq2Seq, Trainer
 
 from src.data.data_load import load_train_data
-from src.monitor.monitor import init_monitor
 from src.train.arguments import ModelArguments, DataArguments, print_args, MyTrainingArguments
 from src.util.device_util import get_train_device
+from train.hp_tune import hp_space
 
 # 环境设置
 os.environ["WANDB_MODE"] = "offline"
@@ -28,8 +27,7 @@ def preprocess_logits_for_metrics(logits, labels):
     pass
 
 
-def train_model():
-    model_args, data_args, training_args = get_args()
+def train(model_args, data_args, training_args):
     device = get_train_device()
     # init_monitor(training_args)
     mode_kwargs = _get_mode_kwargs(model_args)
@@ -127,7 +125,7 @@ def train_model():
             model_args.model_name_or_path,
             **mode_kwargs,
         )
-        #model.to(device)
+        model.to(device)
 
         if model_args.use_lora:
             # 定义 Lora 配置
@@ -142,57 +140,45 @@ def train_model():
             model = get_peft_model(model, lora_config)
         return model
 
-    # 模型加载
-    trainer = Trainer(
-        model_init=model_init,
-        args=training_args,
-        train_dataset=train_dataset,
-        eval_dataset=val_dataset,
-        data_collator=data_collator,
-    )
-    #
-    # total_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
-    # print(f"Total trainable parameters: {total_params}")
+    # 默认使用eval loss作为指标，如果需要其他指标，可以使用compute_objective参数
+    if training_args.use_hp_search:
+        print("Starting hyperparameter_search training...")
+        trainer = Trainer(
+            model_init=model_init,
+            args=training_args,
+            train_dataset=train_dataset,
+            eval_dataset=val_dataset,
+            data_collator=data_collator,
+        )
+        best_run = trainer.hyperparameter_search(
+            direction="minimize",
+            hp_space=hp_space(backend=training_args.hp_search_backend),
+            backend=training_args.hp_search_backend,
+            n_trials=training_args.hp_search_trails,
+        )
+        # 输出最佳超参数
+        print("Best hyperparameters:", best_run.hyperparameters)
+    else:
+        model = model_init()
+        trainer = Trainer(
+            model=model,
+            args=training_args,
+            train_dataset=train_dataset,
+            eval_dataset=val_dataset,
+            data_collator=data_collator,
+        )
+        # 模型加载
+        total_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+        print(f"Total trainable parameters: {total_params}")
+        print("Starting  training...")
+        trainer.train(resume_from_checkpoint=training_args.resume_from_checkpoint)
 
-    # 开始训练
-    print("Starting hyperparameter_search training...")
-    # n_trials = 5
-    # for trial in range(n_trials):
-    #     try:
-    best_run = trainer.hyperparameter_search(
-        direction="minimize",
-        hp_space=hp_space,
-        backend="optuna",
-        n_trials=20,  # 单次试验
-        gc_after_trial=True,  # 自动垃圾回收
-    )
-        # except Exception as e:
-        #     print(f"Trial {trial} failed: {e}")
-        # finally:
-        #     release_memory()
 
-    # 输出最佳超参数
-    print("Best hyperparameters:", best_run.hyperparameters)
-
-    # 使用最佳超参数重新训练
-    training_args = training_args.replace(**best_run.hyperparameters)
-    print("best training args is:", training_args)
-    trainer = Trainer(
-        model=model_init(),
-        args=training_args,
-        train_dataset=train_dataset,
-        eval_dataset=val_dataset,
-        data_collator=data_collator,
-    )
-    print("Starting best training...")
-    trainer.train(resume_from_checkpoint=training_args.resume_from_checkpoint)
-
-def release_memory():
-    gc.collect()  # 清理 Python 垃圾
-    if torch.cuda.is_available():
-        torch.cuda.empty_cache()  # 清理 GPU 缓存        release_memory()  # 强制释放显存
-# 动态初始化模型方法
-
+def _optuna_hp_space(trial):
+    return {
+        "learning_rate": trial.suggest_loguniform("learning_rate", 1e-5, 5e-4),
+        "gradient_accumulation_steps": trial.suggest_categorical("gradient_accumulation_steps", [4, 8, 16, 24]),
+    }
 
 
 def _get_mode_kwargs(model_args: "ModelArguments") -> Dict[str, Any]:
@@ -206,48 +192,34 @@ def _get_mode_kwargs(model_args: "ModelArguments") -> Dict[str, Any]:
 
 
 def get_args():
-    # 加载JSON配置文件
-    with open('script/params.json') as config_file:
-        config_dict = json.load(config_file)
+    argsParser = argparse.ArgumentParser()
+    # 添加命令行参数
+    argsParser.add_argument("--model_name_or_path", type=str, required=True, help="Path to pretrained model")
+    argsParser.add_argument("--train_data_path", type=str, required=True, help="Path to dataset")
+    argsParser.add_argument("--json_param_path", type=str, default='script/params.json', required=False, help="Path to json param ")
+    args = argsParser.parse_args()
+
     parser = transformers.HfArgumentParser((ModelArguments, DataArguments, MyTrainingArguments))
-    model_args, data_args, training_args = parser.parse_dict(config_dict)
-    # model_args, data_args, training_args = parser.parse_args_into_dataclasses()
+    model_args, data_args, training_args = parser.parse_json_file(json_file=args.json_param_path)
+    data_args.train_data_path = args.train_data_path
+    model_args.model_name_or_path = args.model_name_or_path
     print_args(model_args, 'model arguments')
     print_args(data_args, 'data arguments')
     print_args(training_args, 'training arguments')
     return model_args, data_args, training_args
 
 
-def hp_space(trial):
-    return {
-        "learning_rate": trial.suggest_loguniform("learning_rate", 1e-5, 5e-4),
-        "gradient_accumulation_steps": trial.suggest_categorical("gradient_accumulation_steps", [4, 8,16,24]),
-    }
-
-def wandb_hp_space(trial):
-    return {
-        "method": "random",
-        "metric": {"name": "objective", "goal": "minimize"},
-        "parameters": {
-            #"learning_rate": {"distribution": "uniform", "min": 1e-5, "max": 5e-4},
-            "gradient_accumulation_steps": {"values": [4,8,16,24]},
-        },
-    }
-
-
 if __name__ == '__main__':
     freeze_support()
-    # sys.argv = ['finetune.py',
-    #             '--output_dir', 'tmp/output',
-    #             '--model_name_or_path', '/Users/luxun/workspace/ai/ms/models/Qwen2.5-0.5B-Instruct',
-    #             '--use_lora', 'True',
-    #             '--train_data_path',
-    #             '/Users/luxun/workspace/ai/ms/datasets/code_all',
-    #             '--train_data_format', 'arrow',
-    #             # '--max_steps', '55',
-    #             '--num_train_epochs', '1',
-    #             '--per_device_train_batch_size', '16',
-    #             '--bf16', 'True',
-    #             '--max_seq_length', '512'
-    #             ]
-    train_model()
+    import os
+
+    DEBUG = os.getenv('DEBUG', 'False').lower() in ('true', '1')
+    if DEBUG:
+        print("debug mode...")
+        sys.argv = ['finetune.py',
+                    '--model_name_or_path', '/Users/luxun/workspace/ai/ms/models/Qwen2.5-0.5B-Instruct',
+                    '--train_data_path', '/Users/luxun/workspace/ai/ms/datasets/code_all',
+                    '--json_param_path', '/Users/luxun/workspace/ai/mine/copilot4Coder/script/params.json'
+                    ]
+    model_args, data_args, training_args = get_args()
+    train(model_args, data_args, training_args)
