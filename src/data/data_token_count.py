@@ -1,3 +1,5 @@
+import random
+
 import matplotlib
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -10,11 +12,13 @@ from transformers import AutoTokenizer
 model_path = "/Users/luxun/workspace/ai/ms/models/Qwen2.5-0.5B-Instruct"
 data_path = "/Users/luxun/workspace/ai/ms/datasets/code_all"
 
+sample_percentage = 1.0
+batch_size = 100000
+
 
 def main():
     tokenizer = AutoTokenizer.from_pretrained(model_path)
     dataset = load_dataset('arrow', data_dir=data_path)
-
     # 检查数据集的列名
     print("数据集列名:", dataset['train'].column_names)
 
@@ -29,16 +33,10 @@ def main():
     # 提取合并后的文本字段，并过滤空文本
     training_data = training_dataset['text']
     training_data = [text for text in training_data if text.strip()]
+    training_data = random.sample(training_data, int(len(training_data) * sample_percentage))
     print(f"处理后的样本数: {len(training_data)}")
 
-    # 确保 training_data 是一个列表
-    if not isinstance(training_data, list):
-        training_data = training_data.tolist()
-
-    # 定义批量大小
-    batch_size = 1000
     token_counts = []
-
     # 分批处理并统计token数
     for i in tqdm(range(0, len(training_data), batch_size), desc="批量统计token数量"):
         batch = training_data[i:i + batch_size]
@@ -46,7 +44,8 @@ def main():
         counts = encodings['length']
         token_counts.extend(counts)
 
-    print(f"统计的token数量: {len(token_counts)}")
+    total_tokens = sum(token_counts)
+    print(f"数据集中所有token总数为: {total_tokens},{format_number(total_tokens)}")
 
     # 中文字体支持
     font_path = '/System/Library/Fonts/Hiragino Sans GB.ttc'
@@ -55,53 +54,47 @@ def main():
     # 全局设置 Matplotlib 字体
     matplotlib.rcParams['font.family'] = 'sans-serif'
     matplotlib.rcParams['font.sans-serif'] = ['Hiragino Sans GB']
-    matplotlib.rcParams['axes.unicode_minus'] = False  # 正确显示负号
+    matplotlib.rcParams['axes.unicode_minus'] = False
 
     # 将 token_counts 转换为 DataFrame
     df = pd.DataFrame(token_counts, columns=['token_count'])
 
-    # 计算统计指标
-    stats = df['token_count'].describe()
-    print("Token数的统计指标：")
-    print(stats)
+    # 均值、中位数、75%分位数、90%分位数、95%分位数和99%分位数
+    token_stats = df['token_count'].describe(percentiles=[.25, .50, .75, .90, .95, .99])
+    print("样本的Token分布情况：")
+    print(token_stats)
+    percentile_99_value = token_stats['99%']
+    percentile_99_count = token_stats.quantile(0.99)
+    print(f"percentile_99_value:{percentile_99_value},percentile_99_count:{percentile_99_count}")
 
     # 设置 Seaborn 风格后再绘图
     sns.set(style="whitegrid")
-
-    # 绘制直方图和密度图
     plt.figure(figsize=(10, 6))
-    sns.histplot(df['token_count'], bins=50, kde=True, color='skyblue')
-    plt.title('训练样本Token数分布', fontsize=16, fontproperties=font_prop)
-    plt.xlabel('Token数量', fontsize=14, fontproperties=font_prop)
-    plt.ylabel('样本数', fontsize=14, fontproperties=font_prop)
-    plt.tight_layout()
+    sns.histplot(token_counts, kde=True, stat="count", color="blue")
+
+    plt.title("Token Count Distribution", fontsize=16)
+    plt.xlabel("Token Count", fontsize=14)
+    plt.ylabel("Count", fontsize=14)
+    # 限制限制的横坐标范围（根据样本的百分位值）
+    plt.xlim(left=0, right=int(percentile_99_value))
     plt.show()
 
-    # 绘制箱线图
-    plt.figure(figsize=(8, 6))
-    sns.boxplot(x=df['token_count'], color='lightgreen')
-    plt.title('训练样本Token数箱线图', fontsize=16, fontproperties=font_prop)
-    plt.xlabel('Token数量', fontsize=14, fontproperties=font_prop)
-    plt.tight_layout()
-    plt.show()
 
-    # 绘制累积分布函数（CDF）
-    plt.figure(figsize=(10, 6))
-    sns.ecdfplot(df['token_count'], color='purple')
-    plt.title('训练样本Token数累积分布', fontsize=16, fontproperties=font_prop)
-    plt.xlabel('Token数量', fontsize=14, fontproperties=font_prop)
-    plt.ylabel('累积概率', fontsize=14, fontproperties=font_prop)
-    plt.tight_layout()
-    plt.show()
+def format_number(num: int) -> str:
+    """
+    Convert a number to a human-readable format with statistical units (K, M, B, T).
+    Args:
+        num (int): The number to format.
 
-    # 计算95百分位数并过滤数据
-    percentile_95 = df['token_count'].quantile(0.95)
-    print(f"95百分位数的Token数量: {percentile_95}")
-
-    filtered_data = [sample for sample, count in zip(training_data, token_counts) if count <= percentile_95]
-
-    print(f"原始样本数: {len(training_data)}")
-    print(f"过滤后样本数: {len(filtered_data)}")
+    Returns:
+        str: The formatted string with units.
+    """
+    units = ["", "K", "M", "B", "T"]
+    for unit in units:
+        if num < 1000:
+            return f"{num:.2f}{unit}".rstrip("0").rstrip(".")
+        num /= 1000
+    return f"{num:.2f}P"  # 超过 T 的情况
 
 
 if __name__ == "__main__":
