@@ -3,11 +3,10 @@ import os
 import sys
 from typing import Any, Dict
 
-import torch
 import transformers
 from peft import LoraConfig, get_peft_model
 from torch.multiprocessing import freeze_support
-from transformers import AutoTokenizer, AutoModelForCausalLM, DataCollatorForSeq2Seq, Trainer, TrainerCallback
+from transformers import AutoTokenizer, AutoModelForCausalLM, DataCollatorForSeq2Seq, Trainer
 
 from eval.eval import compute_metrics, EvaluateCallback
 from monitor.monitor import init_wandb
@@ -119,9 +118,11 @@ def train(model_args, data_args, training_args):
             train_dataset=train_dataset,
             eval_dataset=val_dataset,
             data_collator=data_collator,
-            compute_metrics=compute_metrics,
+            # compute_metrics=compute_metrics,
             callbacks=[EvaluateCallback()]
         )
+        if training_args.eval_by_other_metric:
+            trainer.compute_metrics = compute_metrics
 
         print("Starting  training...")
         _log_all_training_params(model, training_args, data_args)
@@ -161,14 +162,21 @@ def _log_all_training_params(model, training_args: "MyTrainingArguments", data_a
     effective_steps_per_epoch = steps_per_epoch // training_args.gradient_accumulation_steps
     # 计算总训练步数（考虑梯度累积）
     total_training_steps = effective_steps_per_epoch * training_args.num_train_epochs
+    eval_count_per_epoch = effective_steps_per_epoch // training_args.eval_steps
+    effective_train_samples_per_step = training_args.per_device_train_batch_size * training_args.gradient_accumulation_steps
+    train_samples_per_eval = effective_train_samples_per_step * training_args.eval_steps
 
     print(f"总参数数: {total_params:,}")
     print(f"可训练参数数: {trainable_params:,}")
     print(f"可训练参数占比: {trainable_ratio:.2f}%")
     print(f"训练样本总数: {data_args.num_train_samples}")
     print(f"验证样本总数: {data_args.num_val_samples}")
-    print(f"每个epoch的步数（不考虑梯度累积）：{steps_per_epoch}")
+    print(f"每step有效batch大小:{effective_train_samples_per_step}")
     print(f"每个epoch的有效训练步数（考虑梯度累积）：{effective_steps_per_epoch}")
+    print(f"评估步数：{training_args.eval_steps}")
+    print(f"每个epoch评估次数： {eval_count_per_epoch}")
+    print(f"每训练样本数评估一次:{train_samples_per_eval}")
+    print(f"训练epoch数:{training_args.num_train_epochs}")
     print(f"总训练步数（考虑梯度累积）：{total_training_steps}")
 
 
@@ -187,8 +195,6 @@ def get_args():
     return model_args, data_args, training_args
 
 
-
-
 if __name__ == '__main__':
     freeze_support()
     import os
@@ -198,7 +204,7 @@ if __name__ == '__main__':
         print("debug mode...")
         sys.argv = ['finetune.py',
                     '--model_name_or_path', '/Users/luxun/workspace/ai/hf/models/Qwen1.5-0.5B',
-                    '--train_data_path', '/Users/luxun/workspace/ai/mine/copilot4Coder/src/util/filtered_code_all/train',
+                    '--train_data_path', '/Users/luxun/workspace/ai/mine/copilot4Coder/src/util/filtered_code_all/filtered_code_all',
                     '--json_param_path', '/Users/luxun/workspace/ai/mine/copilot4Coder/script/params.json'
                     ]
     model_args, data_args, training_args = get_args()

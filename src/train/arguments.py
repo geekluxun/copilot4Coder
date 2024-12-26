@@ -20,7 +20,7 @@ class MyModelArguments:
 class MyDataArguments:
     train_data_path: str = field(default=None, metadata={"help": "Path to the training data."})
     train_data_percentage: Optional[float] = field(
-        default=0.01,
+        default=1.0,
         metadata={"help": "The percentage of data to use. If < 1.0, will use a subset of the data."}
     )
     load_local_dataset: bool = field(default=True, metadata={"help": "Whether to load local dataset."})
@@ -40,6 +40,7 @@ class MyTrainingArguments(TrainingArguments):
                                    metadata={"help": "The hyperparameter search backend."})
     hp_search_trails: int = field(default=10, metadata={"help": "The number of trails for hyperparameter search."})
     run_name: str = field(default='copilot4Coder', metadata={"help": "The name of the run."})
+    eval_by_other_metric: bool = field(default=False, metadata={"help": "Whether to evaluate by other  metric."})
 
 
 def print_args(args, name='arguments'):
