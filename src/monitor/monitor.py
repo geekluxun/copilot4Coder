@@ -11,7 +11,7 @@ project_name = "CodeCopilot"
 MONITOR_INTERVAL = 30
 
 
-def init_monitor(training_args: TrainingArguments):
+def init_wandb(training_args: TrainingArguments):
     wandb.init(
         project=project_name,
         mode="offline",
@@ -19,6 +19,9 @@ def init_monitor(training_args: TrainingArguments):
         allow_val_change=True,
         reinit=True
     )
+
+
+def init_gpu_monitor():
     # 启动资源监控
     monitor = ResourceMonitor(interval=MONITOR_INTERVAL)
     monitor.start()
@@ -70,4 +73,3 @@ class ResourceMonitor:
 
             print("=====================")
             time.sleep(self.interval)
-

@@ -13,3 +13,5 @@ pandas
 tqdm
 tensorboard
 optuna
+rouge_score
+scikit-learn

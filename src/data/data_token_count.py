@@ -10,7 +10,7 @@ from tqdm import tqdm
 from transformers import AutoTokenizer
 
 model_path = "/Users/luxun/workspace/ai/ms/models/Qwen2.5-0.5B-Instruct"
-data_path = "/Users/luxun/workspace/ai/ms/datasets/code_all"
+data_path = "/Users/luxun/workspace/ai/mine/copilot4Coder/src/util/filtered_code_all/train"
 
 sample_percentage = 1.0
 batch_size = 100000

@@ -3,13 +3,16 @@ import os
 import sys
 from typing import Any, Dict
 
+import torch
 import transformers
 from peft import LoraConfig, get_peft_model
 from torch.multiprocessing import freeze_support
-from transformers import AutoTokenizer, AutoModelForCausalLM, DataCollatorForSeq2Seq, Trainer
+from transformers import AutoTokenizer, AutoModelForCausalLM, DataCollatorForSeq2Seq, Trainer, TrainerCallback
 
+from eval.eval import compute_metrics, EvaluateCallback
+from monitor.monitor import init_wandb
 from src.data.data_load import load_train_data
-from src.train.arguments import ModelArguments, DataArguments, print_args, MyTrainingArguments
+from src.train.arguments import print_args, MyTrainingArguments, MyModelArguments, MyDataArguments
 from src.util.device_util import get_train_device
 from train.hp_tune import hp_space
 
@@ -28,29 +31,6 @@ def preprocess_logits_for_metrics(logits, labels):
 
 
 def train(model_args, data_args, training_args):
-    device = get_train_device()
-    # init_monitor(training_args)
-    mode_kwargs = _get_mode_kwargs(model_args)
-    # 加载模型
-    print("Loading model...")
-    # model = AutoModelForCausalLM.from_pretrained(
-    #     model_args.model_name_or_path,
-    #     **mode_kwargs,
-    # )
-    # model.to(device)
-    #
-    # if model_args.use_lora:
-    #     # 定义 Lora 配置
-    #     lora_config = LoraConfig(
-    #         r=model_args.lora_rank,
-    #         lora_alpha=model_args.lora_alpha,
-    #         lora_dropout=model_args.lora_dropout,
-    #         target_modules=["q_proj", "k_proj", "v_proj", "o_proj"],
-    #         bias="none",
-    #         task_type="CAUSAL_LM",
-    #     )
-    #     model = get_peft_model(model, lora_config)
-
     # 加载tokenizer和数据集
     tokenizer = AutoTokenizer.from_pretrained(model_args.model_name_or_path)
 
@@ -75,34 +55,6 @@ def train(model_args, data_args, training_args):
         # 将 attention_mask 为 0 的位置（填充部分）设置为 -100
         labels[model_inputs["attention_mask"] == 0] = -100
 
-        # 如果你只希望计算 Completion 部分的损失，而忽略 Instruction 部分，
-        # 你需要进一步将 Instruction 部分的 labels 设置为 -100。
-        # 假设 "### Completion:" 的开始位置相同，你可以找到该位置并进行掩码。
-
-        # 定义 Completion 的前缀
-        # completion_prefix = "### Completion:"
-        # completion_token_ids = tokenizer(completion_prefix, add_special_tokens=False)["input_ids"]
-        #
-        # # 转换为列表以便搜索
-        # input_ids_list = labels.tolist()
-        # completion_length = len(completion_token_ids)
-        #
-        # for i, tokens in enumerate(input_ids_list):
-        #     try:
-        #         # 查找 Completion 前缀的起始位置
-        #         prefix_start = tokens.index(completion_token_ids[0])
-        #         for j in range(1, completion_length):
-        #             if tokens[prefix_start + j] != completion_token_ids[j]:
-        #                 break
-        #         else:
-        #             # Completion 内容的实际开始位置
-        #             completion_start = prefix_start + completion_length
-        #             # 将 Instruction 部分的 labels 设置为 -100
-        #             labels[i, :completion_start] = -100
-        #     except ValueError:
-        #         # 如果未找到 Completion 前缀，则全部设置为 -100
-        #         labels[i] = -100
-
         # 将处理后的 labels 添加到 model_inputs
         model_inputs["labels"] = labels
 
@@ -112,7 +64,8 @@ def train(model_args, data_args, training_args):
     dataset = load_train_data(data_args)
     train_dataset = dataset["train"].map(preprocess_data_function, batched=True)
     val_dataset = dataset["test"].map(preprocess_data_function, batched=True)
-    print(f"train_dataset size: {len(train_dataset)}, val_dataset size: {len(val_dataset)}")
+    data_args.num_train_samples = len(train_dataset)
+    data_args.num_val_samples = len(val_dataset)
 
     # 创建DataCollator
     # collator = DataCollatorForCompletionOnlyLM(response_template=SFT_RESPONSE_TEMPLATE, tokenizer=tokenizer)
@@ -166,11 +119,13 @@ def train(model_args, data_args, training_args):
             train_dataset=train_dataset,
             eval_dataset=val_dataset,
             data_collator=data_collator,
+            compute_metrics=compute_metrics,
+            callbacks=[EvaluateCallback()]
         )
-        # 模型加载
-        total_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
-        print(f"Total trainable parameters: {total_params}")
+
         print("Starting  training...")
+        _log_all_training_params(model, training_args, data_args)
+        # trainer.evaluate()
         trainer.train(resume_from_checkpoint=training_args.resume_from_checkpoint)
 
 
@@ -181,7 +136,7 @@ def _optuna_hp_space(trial):
     }
 
 
-def _get_mode_kwargs(model_args: "ModelArguments") -> Dict[str, Any]:
+def _get_mode_kwargs(model_args: "MyModelArguments") -> Dict[str, Any]:
     init_kwargs = {}
     # if training_args.bf16:
     #     init_kwargs["torch_dtype"] = torch.bfloat16
@@ -189,6 +144,32 @@ def _get_mode_kwargs(model_args: "ModelArguments") -> Dict[str, Any]:
     #     init_kwargs["torch_dtype"] = torch.float16
     init_kwargs["trust_remote_code"] = True
     return init_kwargs
+
+
+def _log_all_training_params(model, training_args: "MyTrainingArguments", data_args: "MyDataArguments"):
+    init_wandb(training_args)
+    print_args(model.config, '模型参数汇总')
+    print_args(data_args, '数据参数汇总')
+    print_args(training_args, '训练参数汇总')
+
+    total_params = sum(p.numel() for p in model.parameters())
+    trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    trainable_ratio = trainable_params / total_params * 100
+    # 计算每个epoch的步骤数
+    steps_per_epoch = data_args.num_train_samples // training_args.per_device_train_batch_size
+    # 计算每个epoch的有效步数（考虑梯度累积）
+    effective_steps_per_epoch = steps_per_epoch // training_args.gradient_accumulation_steps
+    # 计算总训练步数（考虑梯度累积）
+    total_training_steps = effective_steps_per_epoch * training_args.num_train_epochs
+
+    print(f"总参数数: {total_params:,}")
+    print(f"可训练参数数: {trainable_params:,}")
+    print(f"可训练参数占比: {trainable_ratio:.2f}%")
+    print(f"训练样本总数: {data_args.num_train_samples}")
+    print(f"验证样本总数: {data_args.num_val_samples}")
+    print(f"每个epoch的步数（不考虑梯度累积）：{steps_per_epoch}")
+    print(f"每个epoch的有效训练步数（考虑梯度累积）：{effective_steps_per_epoch}")
+    print(f"总训练步数（考虑梯度累积）：{total_training_steps}")
 
 
 def get_args():
@@ -199,14 +180,13 @@ def get_args():
     argsParser.add_argument("--json_param_path", type=str, default='script/params.json', required=False, help="Path to json param ")
     args = argsParser.parse_args()
 
-    parser = transformers.HfArgumentParser((ModelArguments, DataArguments, MyTrainingArguments))
+    parser = transformers.HfArgumentParser((MyModelArguments, MyDataArguments, MyTrainingArguments))
     model_args, data_args, training_args = parser.parse_json_file(json_file=args.json_param_path)
     data_args.train_data_path = args.train_data_path
     model_args.model_name_or_path = args.model_name_or_path
-    print_args(model_args, 'model arguments')
-    print_args(data_args, 'data arguments')
-    print_args(training_args, 'training arguments')
     return model_args, data_args, training_args
+
+
 
 
 if __name__ == '__main__':
@@ -217,8 +197,8 @@ if __name__ == '__main__':
     if DEBUG:
         print("debug mode...")
         sys.argv = ['finetune.py',
-                    '--model_name_or_path', '/Users/luxun/workspace/ai/ms/models/Qwen2.5-0.5B-Instruct',
-                    '--train_data_path', '/Users/luxun/workspace/ai/ms/datasets/code_all',
+                    '--model_name_or_path', '/Users/luxun/workspace/ai/hf/models/Qwen1.5-0.5B',
+                    '--train_data_path', '/Users/luxun/workspace/ai/mine/copilot4Coder/src/util/filtered_code_all/train',
                     '--json_param_path', '/Users/luxun/workspace/ai/mine/copilot4Coder/script/params.json'
                     ]
     model_args, data_args, training_args = get_args()

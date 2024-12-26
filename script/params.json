@@ -6,12 +6,12 @@
   "use_lora": true,
   "num_train_epochs": 1,
   "per_device_train_batch_size": 8,
-  "gradient_accumulation_steps": 2,
+  "gradient_accumulation_steps": 1,
   "per_device_eval_batch_size": 8,
   "learning_rate": 1e-5,
   "warmup_steps": 100,
-  "max_seq_length": 512,
-  "lora_rank": 32,
+  "max_seq_length": 128,
+  "lora_rank": 8,
   "bf16": true,
   "save_strategy": "steps",
   "save_steps": 1000,
@@ -21,11 +21,16 @@
   "eval_steps": 200,
   "logging_dir": "tmp/log",
   "log_level": "debug",
-  "logging_steps": 100,
+  "logging_steps": 20,
   "report_to": [
     "tensorboard",
     "wandb"
   ],
   "use_hp_search": false,
-  "hp_search_backend": "ray"
+  "hp_search_backend": "ray",
+  "test_datasets_percentage": 0.01,
+  "include_for_metrics": [
+    "loss",
+    "inputs"
+  ]
 }

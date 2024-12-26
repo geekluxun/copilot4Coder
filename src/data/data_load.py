@@ -1,9 +1,9 @@
 from datasets import load_dataset
 
-from src.train.arguments import DataArguments
+from train.arguments import MyDataArguments
 
 
-def load_train_data(dataArgs: DataArguments):
+def load_train_data(dataArgs: MyDataArguments):
     seed = 42
     if dataArgs.load_local_dataset:
         datasets = load_dataset(dataArgs.train_data_format, data_dir=dataArgs.train_data_path)

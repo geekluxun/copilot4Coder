@@ -16,7 +16,10 @@ dependencies = [
     "seaborn",
     "matplotlib",
     "pandas",
-    "tqdm"
+    "tqdm",
+    "nltk",
+    "rouge_score",
+    "scikit-learn"
 ]  # 项目的运行时依赖
 
 # Python 的最低版本要求
@@ -29,12 +32,12 @@ where = ["src"]
 # 可选的额外依赖
 [project.optional-dependencies]
 dev = [
-    "pytest>=7.0",  # 测试框架
-    "black>=23.0",  # 代码格式化工具
-    "flake8>=4.0",  # 代码静态检查
+    "pytest>=7.0", # 测试框架
+    "black>=23.0", # 代码格式化工具
+    "flake8>=4.0", # 代码静态检查
 ]
 docs = [
-    "mkdocs>=1.4",  # 文档生成工具
+    "mkdocs>=1.4", # 文档生成工具
     "mkdocs-material>=8.0",
 ]
 
