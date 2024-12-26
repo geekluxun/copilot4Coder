@@ -8,12 +8,12 @@ from peft import LoraConfig, get_peft_model
 from torch.multiprocessing import freeze_support
 from transformers import AutoTokenizer, AutoModelForCausalLM, DataCollatorForSeq2Seq, Trainer
 
-from eval.eval import compute_metrics, EvaluateCallback
-from monitor.monitor import init_wandb
+from src.eval.eval import compute_metrics, EvaluateCallback
+from src.monitor.monitor import init_wandb
 from src.data.data_load import load_train_data
 from src.train.arguments import print_args, MyTrainingArguments, MyModelArguments, MyDataArguments
 from src.util.device_util import get_train_device
-from train.hp_tune import hp_space
+from src.train.hp_tune import hp_space
 
 # 环境设置
 os.environ["WANDB_MODE"] = "offline"
