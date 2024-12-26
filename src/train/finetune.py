@@ -8,7 +8,7 @@ from peft import LoraConfig, get_peft_model
 from torch.multiprocessing import freeze_support
 from transformers import AutoTokenizer, AutoModelForCausalLM, DataCollatorForSeq2Seq, Trainer
 
-from src.eval.eval import compute_metrics, EvaluateCallback
+#from src.eval.eval import compute_metrics, EvaluateCallback
 from src.monitor.monitor import init_wandb
 from src.data.data_load import load_train_data
 from src.train.arguments import print_args, MyTrainingArguments, MyModelArguments, MyDataArguments
@@ -119,10 +119,10 @@ def train(model_args, data_args, training_args):
             eval_dataset=val_dataset,
             data_collator=data_collator,
             # compute_metrics=compute_metrics,
-            callbacks=[EvaluateCallback()]
+            #callbacks=[EvaluateCallback()]
         )
-        if training_args.eval_by_other_metric:
-            trainer.compute_metrics = compute_metrics
+        #if training_args.eval_by_other_metric:
+        #    trainer.compute_metrics = compute_metrics
 
         print("Starting  training...")
         _log_all_training_params(model, training_args, data_args)
