@@ -1,6 +1,6 @@
 from datasets import load_dataset
 
-from train.arguments import MyDataArguments
+from src.train.arguments import MyDataArguments
 
 
 def load_train_data(dataArgs: MyDataArguments):
