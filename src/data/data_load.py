@@ -6,9 +6,9 @@ from src.train.arguments import MyDataArguments
 def load_train_data(dataArgs: MyDataArguments):
     seed = 42
     if dataArgs.load_local_dataset:
-        datasets = load_dataset(dataArgs.train_data_format, data_dir=dataArgs.train_data_path)
+        datasets = load_dataset(dataArgs.train_data_format, data_dir=dataArgs.train_data_name_or_path)
     else:
-        datasets = load_dataset(dataArgs.train_data_path)
+        datasets = load_dataset(dataArgs.train_data_name_or_path)
 
     datasets = datasets['train'].shuffle(seed=seed).select(range(int(len(datasets['train']) * dataArgs.train_data_percentage)))
 
