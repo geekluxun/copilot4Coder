@@ -3,6 +3,8 @@ from typing import Optional
 
 from transformers import TrainingArguments
 
+from common.constant import HubOrigin
+
 
 @dataclass
 class MyModelArguments:
@@ -41,6 +43,7 @@ class MyTrainingArguments(TrainingArguments):
     hp_search_trails: int = field(default=10, metadata={"help": "The number of trails for hyperparameter search."})
     run_name: str = field(default='copilot4Coder', metadata={"help": "The name of the run."})
     eval_by_other_metric: bool = field(default=False, metadata={"help": "Whether to evaluate by other  metric."})
+    hub_origin: str = field(default=HubOrigin.HF.value, metadata={"help": "The organization of the hub."})
 
 
 def print_args(args, name='arguments'):

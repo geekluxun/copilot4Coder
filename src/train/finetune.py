@@ -1,5 +1,4 @@
 import argparse
-import os
 import sys
 from typing import Any, Dict
 
@@ -8,6 +7,7 @@ from peft import LoraConfig, get_peft_model
 from torch.multiprocessing import freeze_support
 from transformers import AutoTokenizer, AutoModelForCausalLM, DataCollatorForSeq2Seq, Trainer
 
+from common.constant import HubOrigin
 from data.data_templete import formatting_prompts_alpaca_style
 from src.data.data_load import load_train_data
 # from src.eval.eval import compute_metrics, EvaluateCallback
@@ -15,11 +15,6 @@ from src.monitor.monitor import init_wandb
 from src.train.arguments import print_args, MyTrainingArguments, MyModelArguments, MyDataArguments
 from src.train.hp_tune import hp_space
 from src.util.device_util import get_train_device
-
-# 环境设置
-os.environ["WANDB_MODE"] = "offline"
-os.environ["WANDB_DIR"] = "tmp/wandb_log"
-os.environ["WANDB_CACHE_DIR"] = "tmp/wandb_log"
 
 
 # local
@@ -181,7 +176,17 @@ def _log_all_training_params(model, training_args: "MyTrainingArguments", data_a
     print(f"总训练步数（考虑梯度累积）：{total_training_steps}")
 
 
-def get_args():
+# 训练环境
+def _init_env(model_args, data_args, training_args):
+    # 环境设置
+    os.environ["WANDB_MODE"] = "offline"
+    os.environ["WANDB_DIR"] = "tmp/wandb_log"
+    os.environ["WANDB_CACHE_DIR"] = "tmp/wandb_log"
+    if training_args.hub_origin == HubOrigin.HF_MIRROR.value:
+        os.environ["HF_ENDPOINT"] = "http://hf-mirror.com"
+
+
+def _get_args():
     argsParser = argparse.ArgumentParser()
     # 添加命令行参数
     argsParser.add_argument("--model_name_or_path", type=str, required=True, help="Path to pretrained model")
@@ -208,5 +213,6 @@ if __name__ == '__main__':
                     '--train_data_name_or_path', 'sahil2801/CodeAlpaca-20k',
                     '--json_param_path', '/Users/luxun/workspace/ai/mine/copilot4Coder/script/params.json'
                     ]
-    model_args, data_args, training_args = get_args()
+    model_args, data_args, training_args = _get_args()
+    _init_env(model_args, data_args, training_args)
     train(model_args, data_args, training_args)

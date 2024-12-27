@@ -34,5 +34,6 @@
     "inputs"
   ],
   "eval_by_other_metric": false,
-  "load_local_dataset": false
+  "load_local_dataset": false,
+  "hub_origin": "hf_mirror"
 }
