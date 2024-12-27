@@ -3,7 +3,7 @@ from typing import Optional
 
 from transformers import TrainingArguments
 
-from common.constant import HubOrigin
+from src.common.constant import HubOrigin
 
 
 @dataclass
