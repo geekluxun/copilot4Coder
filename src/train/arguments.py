@@ -18,7 +18,7 @@ class MyModelArguments:
 
 @dataclass
 class MyDataArguments:
-    train_data_path: str = field(default=None, metadata={"help": "Path to the training data."})
+    train_data_name_or_path: str = field(default=None, metadata={"help": "Path to the training data."})
     train_data_percentage: Optional[float] = field(
         default=1.0,
         metadata={"help": "The percentage of data to use. If < 1.0, will use a subset of the data."}
