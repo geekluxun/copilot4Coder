@@ -7,8 +7,8 @@ from peft import LoraConfig, get_peft_model
 from torch.multiprocessing import freeze_support
 from transformers import AutoTokenizer, AutoModelForCausalLM, DataCollatorForSeq2Seq, Trainer
 
-from common.constant import HubOrigin
-from data.data_templete import formatting_prompts_alpaca_style
+from src.common.constant import HubOrigin
+from src.data.data_templete import formatting_prompts_alpaca_style
 from src.data.data_load import load_train_data
 # from src.eval.eval import compute_metrics, EvaluateCallback
 from src.monitor.monitor import init_wandb
