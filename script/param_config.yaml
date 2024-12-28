@@ -1,0 +1,52 @@
+# train
+output_dir: "tmp/output"
+use_lora: true
+num_train_epochs: 1
+per_device_train_batch_size: 8
+gradient_accumulation_steps: 1
+per_device_eval_batch_size: 8
+learning_rate: 0.00001 # 无法解析1e-05形式
+warmup_ratio: 0.1
+max_seq_length: 128
+lora_rank: 32
+bf16: true
+
+# 超参数搜索
+use_hp_search: false
+hp_search_backend: "ray"
+
+# checkpoint
+save_strategy: "steps"
+save_steps: 2000
+save_total_limit: 3
+resume_from_checkpoint: null
+
+# eval
+eval_strategy: "steps"
+eval_steps: 2000
+eval_on_start: true
+eval_by_other_metric: false
+
+# data
+data_columns:
+  instruction: prompt  # 用户指令
+  input: input   # 用户输入
+  output: completion # 模型输出
+train_data_percentage: 1.0
+test_datasets_percentage: 0.05
+load_local_dataset: false
+train_data_format: "arrow"
+
+# log
+logging_dir: tmp/log
+log_level: "debug"
+logging_steps: 20
+report_to:
+  - "tensorboard"
+  - "wandb"
+# 其他
+include_for_metrics:
+  - "loss"
+  - "inputs"
+hub_origin: "hf_mirror"
+

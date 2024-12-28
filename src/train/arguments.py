@@ -7,6 +7,13 @@ from src.common.constant import HubOrigin
 
 
 @dataclass
+class DataColumns:
+    instruction: str = "instruction"
+    input: str = "input"
+    output: str = "output"
+
+
+@dataclass
 class MyModelArguments:
     model_name_or_path: str = field(
         default=None,
@@ -31,7 +38,7 @@ class MyDataArguments:
     train_data_format: str = field(default='json', metadata={"help": "The format of the data."})
     num_train_samples: int = field(default=None, metadata={"help": "The number of training samples."})
     num_val_samples: int = field(default=None, metadata={"help": "The number of validation samples."})
-
+    data_columns: DataColumns = field(default=DataColumns(), metadata={"help": "The columns of the data."})
 
 @dataclass
 class MyTrainingArguments(TrainingArguments):

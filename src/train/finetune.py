@@ -8,8 +8,8 @@ from torch.multiprocessing import freeze_support
 from transformers import AutoTokenizer, AutoModelForCausalLM, DataCollatorForSeq2Seq, Trainer
 
 from src.common.constant import HubOrigin
-from src.data.data_templete import formatting_prompts_alpaca_style
 from src.data.data_load import load_train_data
+from src.data.data_templete import formatting_prompts_alpaca_style
 # from src.eval.eval import compute_metrics, EvaluateCallback
 from src.monitor.monitor import init_wandb
 from src.train.arguments import print_args, MyTrainingArguments, MyModelArguments, MyDataArguments
@@ -30,7 +30,7 @@ def train(model_args, data_args, training_args):
     tokenizer = AutoTokenizer.from_pretrained(model_args.model_name_or_path)
 
     def preprocess_data_function(examples):
-        prompts = formatting_prompts_alpaca_style(examples)
+        prompts = formatting_prompts_alpaca_style(examples, data_columns=data_args.data_columns)
         # for instruction, completion in zip(examples["prompt"], examples["completion"]):
         #     prompt = f"### Instruction: {instruction}\n### Completion: {completion}"
         #     prompts.append(prompt)
@@ -191,13 +191,14 @@ def _get_args():
     # 添加命令行参数
     argsParser.add_argument("--model_name_or_path", type=str, required=True, help="Path to pretrained model")
     argsParser.add_argument("--train_data_name_or_path", type=str, required=True, help="Path to dataset")
-    argsParser.add_argument("--json_param_path", type=str, default='script/params.json', required=False, help="Path to json param ")
+    argsParser.add_argument("--param_config_path", type=str, default='script/param_config.yaml', required=False, help="Path to json param ")
     args = argsParser.parse_args()
 
     parser = transformers.HfArgumentParser((MyModelArguments, MyDataArguments, MyTrainingArguments))
-    model_args, data_args, training_args = parser.parse_json_file(json_file=args.json_param_path)
-    data_args.train_data_name_or_path = args.train_data_name_or_path
+    model_args, data_args, training_args = parser.parse_yaml_file(yaml_file=args.param_config_path)
+
     model_args.model_name_or_path = args.model_name_or_path
+    data_args.train_data_name_or_path = args.train_data_name_or_path
     return model_args, data_args, training_args
 
 
@@ -211,7 +212,7 @@ if __name__ == '__main__':
         sys.argv = ['finetune.py',
                     '--model_name_or_path', '/Users/luxun/workspace/ai/hf/models/Qwen1.5-0.5B',
                     '--train_data_name_or_path', 'sahil2801/CodeAlpaca-20k',
-                    '--json_param_path', '/Users/luxun/workspace/ai/mine/copilot4Coder/script/params.json'
+                    '--param_config_path', '/Users/luxun/workspace/ai/mine/copilot4Coder/script/param_config.yaml',
                     ]
     model_args, data_args, training_args = _get_args()
     _init_env(model_args, data_args, training_args)
